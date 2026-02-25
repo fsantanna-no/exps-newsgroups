@@ -2,13 +2,34 @@
 
 ## Goal
 
-Two local git repos, each representing a different "peer." Each has MH newsgroup folders. Claws Mail sees both as separate mailbox trees. A sync script merges them via `git pull file://`, and Claws picks up changes live.
+Two local git repos, each representing a different "peer" (machine/node). Each has MH newsgroup folders. Claws Mail sees both as separate mailbox trees. A sync script merges them via `git pull file://`, and Claws picks up changes live.
+
+Repos are **not** identities. Five different people post across both repos. A repo is just where a message happens to originate — like two different NNTP servers that carry overlapping groups.
 
 No Freechains, no GPG signing — just plain MH files in git, synced between peers.
 
 ---
 
-## 1. Newsgroup Layout
+## 1. Identities
+
+Five people, each posting from one or both repos, across different newsgroups.
+
+| Identity              | Posts in repo-alice          | Posts in repo-bob            |
+|-----------------------|------------------------------|------------------------------|
+| `alice@example.com`   | comp.lang.lua, sci.crypt, alt.test |                              |
+| `bob@example.com`     |                              | rec.music, rec.music.synth   |
+| `carol@example.com`   | comp.lang.lua, alt.test.flood | rec.music                   |
+| `dave@example.com`    | sci.crypt, sci.crypt.random  | rec.music.synth              |
+| `eve@example.com`     | comp.lang.lua                | rec.music                    |
+
+- **alice** and **bob**: repo-local only (one repo each)
+- **carol**, **dave**, **eve**: cross-repo (post from both machines)
+
+This demonstrates that repos are transport, not identity.
+
+---
+
+## 2. Newsgroup Layout
 
 Five newsgroups per side. Three shared, two unique to each peer.
 
@@ -53,63 +74,67 @@ rec.music.synth      ← hier 2 (bob-only)
 
 ---
 
-## 2. Filename Convention
+## 3. Filename Convention
 
 To avoid collisions without coordination, each peer owns a trailing digit:
 
-- **Alice**: all filenames end in `1` → `11, 21, 31, 41, ...`
-- **Bob**: all filenames end in `2` → `12, 22, 32, 42, ...`
+- **Repo-alice**: all filenames end in `1` → `11, 21, 31, 41, ...`
+- **Repo-bob**: all filenames end in `2` → `12, 22, 32, 42, ...`
 
 The last digit is the **peer ID**, the prefix is a local counter. Two peers can never produce the same filename. Scales to 10 peers (digits 0–9).
 
+The trailing digit identifies the **repo of origin**, not the author. Carol posting from repo-alice gets a `*1` filename; Carol posting from repo-bob gets a `*2` filename.
+
 ---
 
-## 3. Directory Structure
+## 4. Directory Structure
 
 Each newsgroup is a directory. Messages are numbered files using the trailing-digit scheme.
 
 ```
 repo-alice/
   comp.lang.lua/
-    11
-    21
-    31
+    11              ← alice
+    21              ← carol
+    31              ← eve
   sci.crypt/
-    11
-    21
+    11              ← alice
+    21              ← dave
   sci.crypt.random/
-    11
+    11              ← dave
   alt.test/
-    11
-    21
+    11              ← alice
+    21              ← carol
   alt.test.flood/
-    11
+    11              ← carol
 
 repo-bob/
   comp.lang.lua/
-    (empty — will receive from alice via sync)
+    (empty — will receive from repo-alice via sync)
   sci.crypt/
     (empty)
   sci.crypt.random/
     (empty)
   rec.music/
-    12
-    22
+    12              ← bob
+    22              ← carol
+    32              ← eve
   rec.music.synth/
-    12
+    12              ← bob
+    22              ← dave
 ```
 
-Bob starts **empty in all shared groups** — his only messages are in his unique groups. This tests the "pull everything from scratch" sync path.
+Repo-bob starts **empty in all shared groups**. This tests the "pull everything from scratch" sync path.
 
 ---
 
-## 4. Sample Messages
+## 5. Sample Messages
 
-Each message is a valid RFC 2822 file with Usenet-style headers. No messages repeated across repos.
+Each message is a valid RFC 2822 file with Usenet-style headers. No messages repeated across repos. Authors are spread across both repos.
 
-### Alice's messages
+### Repo-alice messages (9 messages, 4 authors)
 
-**comp.lang.lua/11**
+**comp.lang.lua/11** — alice
 ```
 From: alice@example.com
 Newsgroups: comp.lang.lua
@@ -121,31 +146,33 @@ Has anyone tested the new coroutine.close() behavior in 5.5?
 It seems to finalize to-be-closed variables differently.
 ```
 
-**comp.lang.lua/21**
+**comp.lang.lua/21** — carol
 ```
-From: alice@example.com
+From: carol@example.com
 Newsgroups: comp.lang.lua
-Subject: LPeg vs re module performance
-Message-ID: <lua-lpeg-01@alice>
+Subject: Lua for game scripting - still viable?
+Message-ID: <lua-game-01@carol>
 Date: Mon, 24 Feb 2026 11:00:00 -0300
 
-I benchmarked LPeg against the re module for CSV parsing.
-LPeg is ~3x faster for complex grammars. Results attached.
+We're evaluating Lua vs Wren vs Squirrel for our game engine.
+Lua's ecosystem is unmatched but the lack of native integers
+before 5.3 scared some people off. Is that still a concern?
 ```
 
-**comp.lang.lua/31**
+**comp.lang.lua/31** — eve
 ```
-From: alice@example.com
+From: eve@example.com
 Newsgroups: comp.lang.lua
-Subject: Embedding Lua in C - best practices 2026
-Message-ID: <lua-embed-01@alice>
+Subject: Lua string patterns vs full regex
+Message-ID: <lua-pattern-01@eve>
 Date: Mon, 24 Feb 2026 12:00:00 -0300
 
-What's the current best practice for embedding Lua in a C
-application? Is lua_newstate+custom allocator still the way?
+I keep running into limitations with Lua's built-in patterns.
+No alternation, no non-greedy quantifiers. Is LPeg the only
+real alternative, or are there lighter options?
 ```
 
-**sci.crypt/11**
+**sci.crypt/11** — alice
 ```
 From: alice@example.com
 Newsgroups: sci.crypt
@@ -157,24 +184,25 @@ ML-KEM is now in TLS 1.3 drafts. Anyone deploying hybrid
 key exchange (X25519 + ML-KEM-768) in production?
 ```
 
-**sci.crypt/21**
+**sci.crypt/21** — dave
 ```
-From: alice@example.com
+From: dave@example.com
 Newsgroups: sci.crypt
-Subject: Re: Hash function for content addressing
-Message-ID: <crypt-hash-01@alice>
+Subject: Side-channel attacks on AES-NI
+Message-ID: <crypt-aes-01@dave>
 Date: Mon, 24 Feb 2026 14:00:00 -0300
 
-For content-addressed storage, BLAKE3 is hard to beat.
-256-bit output, tree-hashing built in, faster than SHA-256.
+The recent paper on power analysis against AES-NI is
+concerning. Even hardware instructions aren't immune to
+side-channel leakage if the key schedule is exposed.
 ```
 
-**sci.crypt.random/11**
+**sci.crypt.random/11** — dave
 ```
-From: alice@example.com
+From: dave@example.com
 Newsgroups: sci.crypt.random
 Subject: CSPRNG seeding on embedded Linux
-Message-ID: <random-seed-01@alice>
+Message-ID: <random-seed-01@dave>
 Date: Mon, 24 Feb 2026 15:00:00 -0300
 
 On embedded systems with no RTC, getrandom(2) blocks until
@@ -182,7 +210,7 @@ the entropy pool is initialized. What do people use for
 early-boot randomness?
 ```
 
-**alt.test/11**
+**alt.test/11** — alice
 ```
 From: alice@example.com
 Newsgroups: alt.test
@@ -194,38 +222,38 @@ This is a test message to verify MH file handling in git.
 If you can read this, the format works.
 ```
 
-**alt.test/21**
+**alt.test/21** — carol
 ```
-From: alice@example.com
+From: carol@example.com
 Newsgroups: alt.test
-Subject: Second test message
-Message-ID: <test-mh-02@alice>
+Subject: Cross-repo sync test
+Message-ID: <test-sync-01@carol>
 Date: Mon, 24 Feb 2026 16:30:00 -0300
 
-Another test. Checking that sequential numbering and
-git add/commit work with multiple messages.
+Testing that messages from different authors survive
+a git pull across repos. Carol posting from repo-alice.
 ```
 
-**alt.test.flood/11**
+**alt.test.flood/11** — carol
 ```
-From: alice@example.com
+From: carol@example.com
 Newsgroups: alt.test.flood
 Subject: Flood test #1
-Message-ID: <flood-01@alice>
+Message-ID: <flood-01@carol>
 Date: Mon, 24 Feb 2026 17:00:00 -0300
 
 First message in the flood test group.
 Used for volume/stress testing.
 ```
 
-### Bob's messages
+### Repo-bob messages (5 messages, 4 authors)
 
-**rec.music/12**
+**rec.music/12** — bob
 ```
 From: bob@example.com
 Newsgroups: rec.music
 Subject: Analog vs digital synthesis in 2026
-Message-ID: <music-synth-01@bob>
+Message-ID: <music-analog-01@bob>
 Date: Tue, 25 Feb 2026 09:00:00 -0300
 
 With modern DACs and oversampling, can anyone actually
@@ -233,38 +261,74 @@ hear the difference between analog and digital oscillators
 in a blind test?
 ```
 
-**rec.music/22**
+**rec.music/22** — carol
 ```
-From: bob@example.com
+From: carol@example.com
 Newsgroups: rec.music
-Subject: Open-source firmware for MIDI controllers
-Message-ID: <music-midi-01@bob>
+Subject: Live coding music with Sonic Pi
+Message-ID: <music-livecode-01@carol>
 Date: Tue, 25 Feb 2026 10:00:00 -0300
 
-I've been hacking on open-source firmware for cheap MIDI
-controllers. The latency improvements over stock firmware
-are significant — sub-1ms over USB.
+I've been using Sonic Pi for live performances. The Ruby DSL
+is surprisingly expressive. Anyone else combining code and
+music in real-time?
 ```
 
-**rec.music.synth/12**
+**rec.music/32** — eve
+```
+From: eve@example.com
+Newsgroups: rec.music
+Subject: Microtonal tuning systems
+Message-ID: <music-micro-01@eve>
+Date: Tue, 25 Feb 2026 11:00:00 -0300
+
+Has anyone experimented with 19-TET or 31-TET tuning?
+Most DAWs are locked to 12-TET. I've been using Scala
+files but the workflow is painful.
+```
+
+**rec.music.synth/12** — bob
 ```
 From: bob@example.com
 Newsgroups: rec.music.synth
 Subject: Modular synth patching as a graph problem
 Message-ID: <synth-graph-01@bob>
-Date: Tue, 25 Feb 2026 11:00:00 -0300
+Date: Tue, 25 Feb 2026 12:00:00 -0300
 
 Every modular synth patch is a directed graph. Has anyone
 applied graph theory to find optimal signal routing?
 ```
 
+**rec.music.synth/22** — dave
+```
+From: dave@example.com
+Newsgroups: rec.music.synth
+Subject: DIY synthesizer on an FPGA
+Message-ID: <synth-fpga-01@dave>
+Date: Tue, 25 Feb 2026 13:00:00 -0300
+
+I built a polyphonic synth on a Lattice iCE40 FPGA.
+8 voices, each with 2 oscillators and a filter.
+Total cost under $30. Happy to share the Verilog.
+```
+
+### Author summary
+
+| Author | repo-alice msgs | repo-bob msgs | Total | Newsgroups |
+|--------|:-:|:-:|:-:|---|
+| alice  | 3 | 0 | 3 | comp.lang.lua, sci.crypt, alt.test |
+| bob    | 0 | 2 | 2 | rec.music, rec.music.synth |
+| carol  | 3 | 1 | 4 | comp.lang.lua, alt.test, alt.test.flood, rec.music |
+| dave   | 2 | 1 | 3 | sci.crypt, sci.crypt.random, rec.music.synth |
+| eve    | 1 | 1 | 2 | comp.lang.lua, rec.music |
+
 ---
 
-## 5. Repo Initialization
+## 6. Repo Initialization
 
 No bare hub repo. Both repos are regular git repos that pull from each other using `file://` paths. No daemon needed.
 
-### Step 5a: Create repo-alice
+### Step 6a: Create repo-alice
 
 ```bash
 mkdir -p ~/exps-newsgroups-lab/repo-alice
@@ -274,14 +338,14 @@ git init
 # Create newsgroup directories and populate messages
 mkdir -p comp.lang.lua sci.crypt sci.crypt.random alt.test alt.test.flood
 
-# Write all alice's messages (see section 4) into the directories
+# Write all repo-alice messages (see section 5) into the directories
 # ... (each message written as the numbered file)
 
 git add .
-git commit -m "alice: initial messages"
+git commit -m "repo-alice: initial messages (alice, carol, dave, eve)"
 ```
 
-### Step 5b: Create repo-bob
+### Step 6b: Create repo-bob
 
 ```bash
 mkdir -p ~/exps-newsgroups-lab/repo-bob
@@ -291,17 +355,17 @@ git init
 # Create bob-only directories with messages
 mkdir -p rec.music rec.music.synth
 
-# Write bob's messages (see section 4) into the directories
+# Write all repo-bob messages (see section 5) into the directories
 # ... (each message written as the numbered file)
 
 # Create empty shared directories (so Claws sees the folders)
 mkdir -p comp.lang.lua sci.crypt sci.crypt.random
 
 git add .
-git commit -m "bob: initial messages"
+git commit -m "repo-bob: initial messages (bob, carol, dave, eve)"
 ```
 
-### Step 5c: Add cross-remotes
+### Step 6c: Add cross-remotes
 
 ```bash
 # In repo-alice, add bob as a remote
@@ -317,7 +381,7 @@ Now `git pull alice main` (from bob) or `git pull bob main` (from alice) syncs d
 
 ---
 
-## 6. Sync Script
+## 7. Sync Script
 
 A simple `sync.sh` that runs inside one repo and pulls from the other peer.
 
@@ -354,11 +418,11 @@ done
 
 ---
 
-## 7. Claws Mail Configuration
+## 8. Claws Mail Configuration
 
 Claws Mail reads MH folders directly from the filesystem. Each repo appears as a separate "mailbox" (account folder tree).
 
-### Step 7a: Add repo-alice as a mailbox
+### Step 8a: Add repo-alice as a mailbox
 
 1. Open Claws Mail
 2. Go to **File → Add mailbox → MH...**
@@ -367,14 +431,14 @@ Claws Mail reads MH folders directly from the filesystem. Each repo appears as a
 5. The folder tree appears in the left pane with:
    ```
    repo-alice
-   ├── alt.test          (2 messages)
-   ├── alt.test.flood    (1 message)
-   ├── comp.lang.lua     (3 messages)
-   ├── sci.crypt         (2 messages)
-   └── sci.crypt.random  (1 message)
+   ├── alt.test          (2 messages: alice, carol)
+   ├── alt.test.flood    (1 message: carol)
+   ├── comp.lang.lua     (3 messages: alice, carol, eve)
+   ├── sci.crypt         (2 messages: alice, dave)
+   └── sci.crypt.random  (1 message: dave)
    ```
 
-### Step 7b: Add repo-bob as a mailbox
+### Step 8b: Add repo-bob as a mailbox
 
 1. Go to **File → Add mailbox → MH...**
 2. Enter the path: `~/exps-newsgroups-lab/repo-bob`
@@ -383,23 +447,24 @@ Claws Mail reads MH folders directly from the filesystem. Each repo appears as a
    ```
    repo-bob
    ├── comp.lang.lua     (0 messages — empty, pre-sync)
-   ├── rec.music         (2 messages)
-   ├── rec.music.synth   (1 message)
+   ├── rec.music         (3 messages: bob, carol, eve)
+   ├── rec.music.synth   (2 messages: bob, dave)
    ├── sci.crypt         (0 messages — empty, pre-sync)
    └── sci.crypt.random  (0 messages — empty, pre-sync)
    ```
 
-### Step 7c: Verify display
+### Step 8c: Verify display
 
-- Click on `repo-alice/comp.lang.lua` — should show 3 messages
+- Click on `repo-alice/comp.lang.lua` — should show 3 messages from 3 different people
 - Click on `repo-bob/comp.lang.lua` — should show 0 messages
+- Click on `repo-bob/rec.music` — should show 3 messages from 3 different people
 - Both mailbox trees are visible simultaneously in the folder pane
 
 ---
 
-## 8. Live Sync Demo
+## 9. Live Sync Demo
 
-### Step 8a: Start the sync watcher on Bob's side
+### Step 9a: Start the sync watcher on Bob's side
 
 ```bash
 cd ~/exps-newsgroups-lab/repo-bob
@@ -408,13 +473,13 @@ bash watch-sync.sh alice 5
 
 This pulls from alice every 5 seconds via `file://`.
 
-### Step 8b: Trigger a sync
+### Step 9b: Trigger a sync
 
 Alice's repo already has messages committed. The watcher in repo-bob pulls them automatically on the next cycle.
 
 Within 5 seconds, `watch-sync.sh` in repo-bob pulls alice's messages into the shared groups.
 
-### Step 8c: Refresh Claws Mail
+### Step 9c: Refresh Claws Mail
 
 Claws does not auto-detect filesystem changes. After sync:
 
@@ -422,18 +487,20 @@ Claws does not auto-detect filesystem changes. After sync:
 - Or press the global **Get Mail** button (it checks all accounts/mailboxes)
 - Or set up a **folder processing rule** to auto-check at an interval
 
-After refresh, `repo-bob/comp.lang.lua` now shows 3 messages (alice's), while `repo-bob/rec.music` still has 2 (bob's originals).
+After refresh, `repo-bob/comp.lang.lua` now shows 3 messages (alice, carol, eve — all from repo-alice), while `repo-bob/rec.music` still has 3 (bob, carol, eve — originals from repo-bob).
 
-### Step 8d: Verify bidirectional sync
+Note: carol and eve now appear in **both** repos — their messages originated on different machines but converge after sync.
+
+### Step 9d: Verify bidirectional sync
 
 ```bash
-# On bob's side, create a new message (note: filename ends in 2)
+# On bob's side, eve posts a reply (note: filename ends in 2, it's repo-bob)
 cat > ~/exps-newsgroups-lab/repo-bob/comp.lang.lua/12 << 'EOF'
-From: bob@example.com
+From: eve@example.com
 Newsgroups: comp.lang.lua
 Subject: Re: Lua 5.5 coroutine changes
-Message-ID: <lua-coro-reply-01@bob>
-Date: Tue, 25 Feb 2026 12:00:00 -0300
+Message-ID: <lua-coro-reply-01@eve>
+Date: Tue, 25 Feb 2026 14:00:00 -0300
 References: <lua-coro-01@alice>
 
 Yes, I tested it. The finalization order changed in 5.5.
@@ -443,7 +510,7 @@ EOF
 
 cd ~/exps-newsgroups-lab/repo-bob
 git add .
-git commit -m "bob: reply to lua coroutine thread"
+git commit -m "eve: reply to lua coroutine thread"
 ```
 
 Then on alice's side, pull from bob:
@@ -453,21 +520,22 @@ cd ~/exps-newsgroups-lab/repo-alice
 git pull bob main
 ```
 
-Refresh Claws on alice's mailbox — `comp.lang.lua` now shows 4 messages (11, 21, 31 from alice + 12 from bob).
+Refresh Claws on alice's mailbox — `comp.lang.lua` now shows 4 messages (11, 21, 31 from repo-alice + 12 from repo-bob). Eve now has messages originating from **both** repos in the same newsgroup.
 
 ---
 
-## 9. What This Proves
+## 10. What This Proves
 
 After running this experiment:
 
+- **Repos are not identities**: carol, dave, and eve post from both repos — the repo is just transport
 - **MH + git works**: plain numbered files in directories, version-controlled, mergeable
 - **Claws reads it natively**: no import, no conversion, just point at the directory
 - **file:// sync is trivial**: `git pull` between local repos, no server or daemon
-- **Trailing-digit scheme prevents collisions**: alice's `*1` files never clash with bob's `*2` files
+- **Trailing-digit scheme prevents collisions**: repo-alice's `*1` files never clash with repo-bob's `*2` files
 - **Bidirectional sync**: both peers can create messages and pull from each other
 - **Live updates**: Claws picks up new files on refresh
-- **Hierarchy preserved**: `sci.crypt/` and `sci.crypt.random/` appear as sibling folders, matching the newsgroup hierarchy convention
+- **Hierarchy preserved**: `sci.crypt/` and `sci.crypt.random/` appear as sibling folders
 
 ### Limitations of this simple setup
 
