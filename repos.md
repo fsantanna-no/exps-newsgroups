@@ -94,8 +94,8 @@ Each newsgroup is a directory. Messages are numbered files using the trailing-di
 ```
 repo-alice/
   comp.lang.lua/
-    11              ← alice
-    21              ← carol
+    11              ← alice          (thread 1 root)
+    21              ← carol          (thread 1 reply)
     31              ← eve
   sci.crypt/
     11              ← alice
@@ -116,12 +116,12 @@ repo-bob/
   sci.crypt.random/
     (empty)
   rec.music/
-    12              ← bob
-    22              ← carol
+    12              ← bob            (thread 2 root)
+    22              ← carol          (thread 2 reply)
     32              ← eve
   rec.music.synth/
-    12              ← bob
-    22              ← dave
+    12              ← bob            (thread 3 root)
+    22              ← dave           (thread 3 reply)
 ```
 
 Repo-bob starts **empty in all shared groups**. This tests the "pull everything from scratch" sync path.
@@ -131,6 +131,17 @@ Repo-bob starts **empty in all shared groups**. This tests the "pull everything 
 ## 5. Sample Messages
 
 Each message is a valid RFC 2822 file with Usenet-style headers. No messages repeated across repos. Authors are spread across both repos.
+
+Three threads exist before sync, plus one cross-repo thread created in the demo:
+
+| Thread | Newsgroup | Root → Reply | Repo |
+|--------|-----------|-------------|------|
+| 1 | comp.lang.lua | alice/11 → carol/21 | repo-alice (same-repo thread) |
+| 2 | rec.music | bob/12 → carol/22 | repo-bob (same-repo thread) |
+| 3 | rec.music.synth | bob/12 → dave/22 | repo-bob (same-repo thread) |
+| 4 | comp.lang.lua | alice/11 → eve/12 | cross-repo (demo, section 9d) |
+
+Thread 4 extends thread 1 after sync — the comp.lang.lua coroutine discussion becomes a 3-message cross-repo thread.
 
 ### Repo-alice messages (9 messages, 4 authors)
 
@@ -146,17 +157,19 @@ Has anyone tested the new coroutine.close() behavior in 5.5?
 It seems to finalize to-be-closed variables differently.
 ```
 
-**comp.lang.lua/21** — carol
+**comp.lang.lua/21** — carol (thread: replies to alice/11)
 ```
 From: carol@example.com
 Newsgroups: comp.lang.lua
-Subject: Lua for game scripting - still viable?
-Message-ID: <lua-game-01@carol>
+Subject: Re: Lua 5.5 coroutine changes
+Message-ID: <lua-coro-02@carol>
 Date: Mon, 24 Feb 2026 11:00:00 -0300
+References: <lua-coro-01@alice>
+In-Reply-To: <lua-coro-01@alice>
 
-We're evaluating Lua vs Wren vs Squirrel for our game engine.
-Lua's ecosystem is unmatched but the lack of native integers
-before 5.3 scared some people off. Is that still a concern?
+The new close() behavior matters a lot for game engines.
+We use coroutines for NPC scripts and the finalization
+order change broke some of our cleanup logic.
 ```
 
 **comp.lang.lua/31** — eve
@@ -261,17 +274,19 @@ hear the difference between analog and digital oscillators
 in a blind test?
 ```
 
-**rec.music/22** — carol
+**rec.music/22** — carol (thread: replies to bob/12)
 ```
 From: carol@example.com
 Newsgroups: rec.music
-Subject: Live coding music with Sonic Pi
-Message-ID: <music-livecode-01@carol>
+Subject: Re: Analog vs digital synthesis in 2026
+Message-ID: <music-analog-02@carol>
 Date: Tue, 25 Feb 2026 10:00:00 -0300
+References: <music-analog-01@bob>
+In-Reply-To: <music-analog-01@bob>
 
-I've been using Sonic Pi for live performances. The Ruby DSL
-is surprisingly expressive. Anyone else combining code and
-music in real-time?
+I did a blind test last month — 20 listeners, A/B between
+a Moog and a software clone. 60% accuracy, barely above
+chance. The analog "warmth" might be nostalgia bias.
 ```
 
 **rec.music/32** — eve
@@ -299,17 +314,20 @@ Every modular synth patch is a directed graph. Has anyone
 applied graph theory to find optimal signal routing?
 ```
 
-**rec.music.synth/22** — dave
+**rec.music.synth/22** — dave (thread: replies to bob/12)
 ```
 From: dave@example.com
 Newsgroups: rec.music.synth
-Subject: DIY synthesizer on an FPGA
-Message-ID: <synth-fpga-01@dave>
+Subject: Re: Modular synth patching as a graph problem
+Message-ID: <synth-graph-02@dave>
 Date: Tue, 25 Feb 2026 13:00:00 -0300
+References: <synth-graph-01@bob>
+In-Reply-To: <synth-graph-01@bob>
 
-I built a polyphonic synth on a Lattice iCE40 FPGA.
-8 voices, each with 2 oscillators and a filter.
-Total cost under $30. Happy to share the Verilog.
+I implemented exactly this on a Lattice iCE40 FPGA.
+The routing matrix is a sparse adjacency list — each
+module has 4 inputs and 2 outputs. Happy to share
+the Verilog if anyone wants to try it.
 ```
 
 ### Author summary
@@ -499,9 +517,10 @@ cat > ~/exps-newsgroups-lab/repo-bob/comp.lang.lua/12 << 'EOF'
 From: eve@example.com
 Newsgroups: comp.lang.lua
 Subject: Re: Lua 5.5 coroutine changes
-Message-ID: <lua-coro-reply-01@eve>
+Message-ID: <lua-coro-03@eve>
 Date: Tue, 25 Feb 2026 14:00:00 -0300
-References: <lua-coro-01@alice>
+References: <lua-coro-01@alice> <lua-coro-02@carol>
+In-Reply-To: <lua-coro-01@alice>
 
 Yes, I tested it. The finalization order changed in 5.5.
 to-be-closed variables now close in reverse declaration order
@@ -520,7 +539,16 @@ cd ~/exps-newsgroups-lab/repo-alice
 git pull bob main
 ```
 
-Refresh Claws on alice's mailbox — `comp.lang.lua` now shows 4 messages (11, 21, 31 from repo-alice + 12 from repo-bob). Eve now has messages originating from **both** repos in the same newsgroup.
+Refresh Claws on alice's mailbox — `comp.lang.lua` now shows 4 messages (11, 21, 31 from repo-alice + 12 from repo-bob). In threaded view, Claws groups them:
+
+```
+▼ Lua 5.5 coroutine changes         alice   (11, root)
+  ├─ Re: Lua 5.5 coroutine changes  carol   (21, from repo-alice)
+  └─ Re: Lua 5.5 coroutine changes  eve     (12, from repo-bob)
+  Lua string patterns vs full regex  eve     (31, standalone)
+```
+
+The thread spans two repos and three authors — eve's reply came from repo-bob but threads correctly because of the `References:` header.
 
 ---
 
@@ -529,6 +557,7 @@ Refresh Claws on alice's mailbox — `comp.lang.lua` now shows 4 messages (11, 2
 After running this experiment:
 
 - **Repos are not identities**: carol, dave, and eve post from both repos — the repo is just transport
+- **Threading works across repos**: the comp.lang.lua coroutine thread spans repo-alice and repo-bob, with Claws grouping them correctly via `References:`/`In-Reply-To:` headers
 - **MH + git works**: plain numbered files in directories, version-controlled, mergeable
 - **Claws reads it natively**: no import, no conversion, just point at the directory
 - **file:// sync is trivial**: `git pull` between local repos, no server or daemon
