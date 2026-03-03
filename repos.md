@@ -2,55 +2,73 @@
 
 ## Goal
 
-Two local git repos, each representing a different "peer" (machine/node). Each has MH newsgroup folders. Claws Mail sees both as separate mailbox trees. A sync script merges them via `git pull file://`, and Claws picks up changes live.
+Two local git repos, each representing a different
+"peer" (machine/node).
+Each has MH newsgroup folders.
+Claws Mail sees both as separate mailbox trees.
+A sync script merges them via `git pull file://`,
+and Claws picks up changes live.
 
-Repos are **not** identities. Five different people post across both repos. A repo is just where a message happens to originate — like two different NNTP servers that carry overlapping groups.
+Repos are **not** identities.
+Five different people post across both repos.
+A repo is just where a message happens to originate
+— like two different NNTP servers that carry
+overlapping groups.
 
-No Freechains, no GPG signing — just plain MH files in git, synced between peers.
+No Freechains, no GPG signing — just plain MH
+files in git, synced between peers.
 
 ---
 
 ## 1. Identities
 
-Five people, each posting from one or both repos, across different newsgroups.
+Five people, each posting from one or both repos,
+across different newsgroups.
 
-| Identity              | Posts in repo-1              | Posts in repo-2              |
-|-----------------------|------------------------------|------------------------------|
-| `alice@example.com`   | comp.lang.lua, sci.crypt, alt.test |                              |
-| `bob@example.com`     |                              | rec.music, rec.music.synth   |
-| `carol@example.com`   | comp.lang.lua, alt.test.flood | rec.music                   |
-| `dave@example.com`    | sci.crypt, sci.crypt.random  | rec.music.synth              |
-| `eve@example.com`     | comp.lang.lua                | rec.music                    |
+| Identity             | Posts in repo-1                    | Posts in repo-2            |
+|----------------------|------------------------------------|----------------------------|
+| `alice@example.com`  | comp.lang.lua, sci.crypt, alt.test |                            |
+| `bob@example.com`    |                                    | rec.music, rec.music.synth |
+| `carol@example.com`  | comp.lang.lua, alt.test.flood      | rec.music                  |
+| `dave@example.com`   | sci.crypt, sci.crypt.random        | rec.music.synth            |
+| `eve@example.com`    | comp.lang.lua                      | rec.music                  |
 
-- **alice** and **bob**: repo-local only (one repo each)
-- **carol**, **dave**, **eve**: cross-repo (post from both machines)
+- **alice** and **bob**: repo-local only
+  (one repo each)
+- **carol**, **dave**, **eve**: cross-repo
+  (post from both machines)
 
-This demonstrates that repos are transport, not identity.
+This demonstrates that repos are transport,
+not identity.
 
 ---
 
 ## 2. Newsgroup Layout
 
-Five newsgroups per side. Three shared, two unique to each peer.
+Five newsgroups per side.
+Three shared, two unique to each peer.
 
 ### Hierarchy design
 
 - `comp.lang.lua` — standalone (shared)
-- `sci.crypt` / `sci.crypt.random` — two-level hierarchy (shared)
-- `alt.test` / `alt.test.flood` — two-level hierarchy (repo-1-only)
-- `rec.music` / `rec.music.synth` — two-level hierarchy (repo-2-only)
+- `sci.crypt` / `sci.crypt.random` — two-level
+  hierarchy (shared)
+- `alt.test` / `alt.test.flood` — two-level
+  hierarchy (repo-1-only)
+- `rec.music` / `rec.music.synth` — two-level
+  hierarchy (repo-2-only)
 
 ### Per-repo allocation
 
-| Newsgroup           | Repo 1 | Repo 2 |
-|---------------------|:------:|:------:|
-| `comp.lang.lua`     | ✓              | ✓            |
-| `sci.crypt`         | ✓              | ✓            |
-| `sci.crypt.random`  | ✓              | ✓            |
-| `alt.test`          | ✓              |              |
-| `alt.test.flood`    | ✓              |              |
-| `rec.music`         |                | ✓            |
-| `rec.music.synth`   |                | ✓            |
+| Newsgroup          | Repo 1 | Repo 2 |
+|--------------------|:------:|:------:|
+| `comp.lang.lua`    |   ✓    |   ✓    |
+| `sci.crypt`        |   ✓    |   ✓    |
+| `sci.crypt.random` |   ✓    |   ✓    |
+| `alt.test`         |   ✓    |        |
+| `alt.test.flood`   |   ✓    |        |
+| `rec.music`        |        |   ✓    |
+| `rec.music.synth`  |        |   ✓    |
 
 ### Repo-1's 5 newsgroups
 
@@ -76,20 +94,31 @@ rec.music.synth      ← hier 2 (repo-2-only)
 
 ## 3. Filename Convention
 
-To avoid collisions without coordination, each peer owns a trailing digit:
+To avoid collisions without coordination, each
+peer owns a trailing digit:
 
-- **Repo-1**: all filenames end in `1` → `11, 21, 31, 41, ...`
-- **Repo-2**: all filenames end in `2` → `12, 22, 32, 42, ...`
+- **Repo-1**: filenames end in `1`
+  → `11, 21, 31, 41, ...`
+- **Repo-2**: filenames end in `2`
+  → `12, 22, 32, 42, ...`
 
-The last digit is the **peer ID**, the prefix is a local counter. Two peers can never produce the same filename. Scales to 10 peers (digits 0–9).
+The last digit is the **peer ID**, the prefix is
+a local counter.
+Two peers can never produce the same filename.
+Scales to 10 peers (digits 0–9).
 
-The trailing digit identifies the **repo of origin**, not the author. carol posting from repo-1 gets a `*1` filename; carol posting from repo-2 gets a `*2` filename.
+The trailing digit identifies the **repo of
+origin**, not the author.
+carol posting from repo-1 gets a `*1` filename;
+carol posting from repo-2 gets a `*2` filename.
 
 ---
 
 ## 4. Directory Structure
 
-Each newsgroup is a directory. Messages are numbered files using the trailing-digit scheme.
+Each newsgroup is a directory.
+Messages are numbered files using the
+trailing-digit scheme.
 
 ```
 repo-1/
@@ -124,24 +153,32 @@ repo-2/
     22              ← dave           (thread 3 reply)
 ```
 
-Repo-2 starts **empty in all shared groups**. This tests the "pull everything from scratch" sync path.
+Repo-2 starts **empty in all shared groups**.
+This tests the "pull everything from scratch"
+sync path.
 
 ---
 
 ## 5. Sample Messages
 
-Each message is a valid RFC 2822 file with Usenet-style headers. No messages repeated across repos. Authors are spread across both repos.
+Each message is a valid RFC 2822 file with
+Usenet-style headers.
+No messages repeated across repos.
+Authors are spread across both repos.
 
-Three threads exist before sync, plus one cross-repo thread created in the demo:
+Three threads exist before sync, plus one
+cross-repo thread created in the demo:
 
-| Thread | Newsgroup | Root → Reply | Repo |
-|--------|-----------|-------------|------|
-| 1 | comp.lang.lua | alice/11 → carol/21 | repo-1 (same-repo thread) |
-| 2 | rec.music | bob/12 → carol/22 | repo-2 (same-repo thread) |
-| 3 | rec.music.synth | bob/12 → dave/22 | repo-2 (same-repo thread) |
-| 4 | comp.lang.lua | alice/11 → eve/12 | cross-repo (demo, section 9d) |
+| Thread | Newsgroup       | Root → Reply        | Repo                          |
+|--------|-----------------|---------------------|-------------------------------|
+| 1      | comp.lang.lua   | alice/11 → carol/21 | repo-1 (same-repo thread)     |
+| 2      | rec.music       | bob/12 → carol/22   | repo-2 (same-repo thread)     |
+| 3      | rec.music.synth | bob/12 → dave/22    | repo-2 (same-repo thread)     |
+| 4      | comp.lang.lua   | alice/11 → eve/12   | cross-repo (demo, section 9d) |
 
-Thread 4 extends thread 1 after sync — the comp.lang.lua coroutine discussion becomes a 3-message cross-repo thread.
+Thread 4 extends thread 1 after sync — the
+comp.lang.lua coroutine discussion becomes a
+3-message cross-repo thread.
 
 ### Repo-1 messages (9 messages, 4 authors)
 
@@ -157,7 +194,8 @@ Has anyone tested the new coroutine.close() behavior in 5.5?
 It seems to finalize to-be-closed variables differently.
 ```
 
-**comp.lang.lua/21** — carol (thread: replies to alice/11)
+**comp.lang.lua/21** — carol
+(thread: replies to alice/11)
 ```
 From: carol@example.com
 Newsgroups: comp.lang.lua
@@ -274,7 +312,8 @@ hear the difference between analog and digital oscillators
 in a blind test?
 ```
 
-**rec.music/22** — carol (thread: replies to bob/12)
+**rec.music/22** — carol
+(thread: replies to bob/12)
 ```
 From: carol@example.com
 Newsgroups: rec.music
@@ -314,7 +353,8 @@ Every modular synth patch is a directed graph. Has anyone
 applied graph theory to find optimal signal routing?
 ```
 
-**rec.music.synth/22** — dave (thread: replies to bob/12)
+**rec.music.synth/22** — dave
+(thread: replies to bob/12)
 ```
 From: dave@example.com
 Newsgroups: rec.music.synth
@@ -332,19 +372,22 @@ the Verilog if anyone wants to try it.
 
 ### Author summary
 
-| Author | Repo-1 | Repo-2 | Total | Newsgroups |
-|--------|:-:|:-:|:-:|---|
-| alice  | 3 | 0 | 3 | comp.lang.lua, sci.crypt, alt.test |
-| bob    | 0 | 2 | 2 | rec.music, rec.music.synth |
-| carol  | 3 | 1 | 4 | comp.lang.lua, alt.test, alt.test.flood, rec.music |
-| dave   | 2 | 1 | 3 | sci.crypt, sci.crypt.random, rec.music.synth |
-| eve    | 1 | 1 | 2 | comp.lang.lua, rec.music |
+| Author | Repo-1 | Repo-2 | Total | Newsgroups                                         |
+|--------|:------:|:------:|:-----:|----------------------------------------------------|
+| alice  |   3    |   0    |   3   | comp.lang.lua, sci.crypt, alt.test                 |
+| bob    |   0    |   2    |   2   | rec.music, rec.music.synth                         |
+| carol  |   3    |   1    |   4   | comp.lang.lua, alt.test, alt.test.flood, rec.music |
+| dave   |   2    |   1    |   3   | sci.crypt, sci.crypt.random, rec.music.synth       |
+| eve    |   1    |   1    |   2   | comp.lang.lua, rec.music                           |
 
 ---
 
 ## 6. Repo Initialization
 
-No bare hub repo. Both repos are regular git repos that pull from each other using `file://` paths. No daemon needed.
+No bare hub repo.
+Both repos are regular git repos that pull from
+each other using `file://` paths.
+No daemon needed.
 
 ### Step 6a: Create repo-1
 
@@ -395,13 +438,16 @@ cd ~/exps-newsgroups-lab/repo-2
 git remote add peer-1 file://$(realpath ../repo-1)
 ```
 
-Now `git pull peer-1 main` (from repo-2) or `git pull peer-2 main` (from repo-1) syncs directly, no server.
+Now `git pull peer-1 main` (from repo-2) or
+`git pull peer-2 main` (from repo-1) syncs
+directly, no server.
 
 ---
 
 ## 7. Sync Script
 
-A simple `sync.sh` that runs inside one repo and pulls from the other peer.
+A simple `sync.sh` that runs inside one repo
+and pulls from the other peer.
 
 ```bash
 #!/bin/bash
@@ -417,7 +463,9 @@ git pull --no-edit "$PEER" main
 echo "=== Sync complete ==="
 ```
 
-Because messages have **unique filenames** (trailing-digit scheme), git merges are always clean — no two peers create the same file path.
+Because messages have **unique filenames**
+(trailing-digit scheme), git merges are always
+clean — no two peers create the same file path.
 
 For continuous "live" sync, wrap in a watch loop:
 
@@ -438,13 +486,17 @@ done
 
 ## 8. Claws Mail Configuration
 
-Claws Mail reads MH folders directly from the filesystem. Each repo appears as a separate "mailbox" (account folder tree).
+Claws Mail reads MH folders directly from the
+filesystem.
+Each repo appears as a separate "mailbox"
+(account folder tree).
 
 ### Step 8a: Add repo-1 as a mailbox
 
 1. Open Claws Mail
 2. Go to **File → Add mailbox → MH...**
-3. In the dialog, enter the path: `~/exps-newsgroups-lab/repo-1`
+3. In the dialog, enter the path:
+   `~/exps-newsgroups-lab/repo-1`
 4. Click OK
 5. The folder tree appears in the left pane with:
    ```
@@ -473,10 +525,14 @@ Claws Mail reads MH folders directly from the filesystem. Each repo appears as a
 
 ### Step 8c: Verify display
 
-- Click on `repo-1/comp.lang.lua` — should show 3 messages from 3 different people
-- Click on `repo-2/comp.lang.lua` — should show 0 messages
-- Click on `repo-2/rec.music` — should show 3 messages from 3 different people
-- Both mailbox trees are visible simultaneously in the folder pane
+- Click on `repo-1/comp.lang.lua` — should show
+  3 messages from 3 different people
+- Click on `repo-2/comp.lang.lua` — should show
+  0 messages
+- Click on `repo-2/rec.music` — should show
+  3 messages from 3 different people
+- Both mailbox trees are visible simultaneously
+  in the folder pane
 
 ---
 
@@ -489,30 +545,44 @@ cd ~/exps-newsgroups-lab/repo-2
 bash watch-sync.sh peer-1 5
 ```
 
-This pulls from repo-1 every 5 seconds via `file://`.
+This pulls from repo-1 every 5 seconds via
+`file://`.
 
 ### Step 9b: Trigger a sync
 
-Repo-1 already has messages committed. The watcher in repo-2 pulls them automatically on the next cycle.
+Repo-1 already has messages committed.
+The watcher in repo-2 pulls them automatically
+on the next cycle.
 
-Within 5 seconds, `watch-sync.sh` in repo-2 pulls repo-1's messages into the shared groups.
+Within 5 seconds, `watch-sync.sh` in repo-2
+pulls repo-1's messages into the shared groups.
 
 ### Step 9c: Refresh Claws Mail
 
-Claws does not auto-detect filesystem changes. After sync:
+Claws does not auto-detect filesystem changes.
+After sync:
 
-- Right-click `repo-2` in the folder pane → **Check for new messages**
-- Or press the global **Get Mail** button (it checks all accounts/mailboxes)
-- Or set up a **folder processing rule** to auto-check at an interval
+- Right-click `repo-2` in the folder pane
+  → **Check for new messages**
+- Or press the global **Get Mail** button
+  (it checks all accounts/mailboxes)
+- Or set up a **folder processing rule** to
+  auto-check at an interval
 
-After refresh, `repo-2/comp.lang.lua` now shows 3 messages (alice, carol, eve — all from repo-1), while `repo-2/rec.music` still has 3 (bob, carol, eve — originals from repo-2).
+After refresh, `repo-2/comp.lang.lua` now shows
+3 messages (alice, carol, eve — all from repo-1),
+while `repo-2/rec.music` still has 3
+(bob, carol, eve — originals from repo-2).
 
-Note: carol and eve now appear in **both** repos — their messages originated on different machines but converge after sync.
+Note: carol and eve now appear in **both** repos
+— their messages originated on different machines
+but converge after sync.
 
 ### Step 9d: Verify bidirectional sync
 
 ```bash
-# On repo-2, eve posts a reply (note: filename ends in 2, it's repo-2)
+# On repo-2, eve posts a reply
+# (note: filename ends in 2, it's repo-2)
 cat > ~/exps-newsgroups-lab/repo-2/comp.lang.lua/12 << 'EOF'
 From: eve@example.com
 Newsgroups: comp.lang.lua
@@ -539,7 +609,10 @@ cd ~/exps-newsgroups-lab/repo-1
 git pull peer-2 main
 ```
 
-Refresh Claws on repo-1's mailbox — `comp.lang.lua` now shows 4 messages (11, 21, 31 from repo-1 + 12 from repo-2). In threaded view, Claws groups them:
+Refresh Claws on repo-1's mailbox —
+`comp.lang.lua` now shows 4 messages
+(11, 21, 31 from repo-1 + 12 from repo-2).
+In threaded view, Claws groups them:
 
 ```
 ▼ Lua 5.5 coroutine changes         alice   (11, root)
@@ -548,7 +621,9 @@ Refresh Claws on repo-1's mailbox — `comp.lang.lua` now shows 4 messages (11, 
   Lua string patterns vs full regex  eve     (31, standalone)
 ```
 
-The thread spans two repos and three authors — eve's reply came from repo-2 but threads correctly because of the `References:` header.
+The thread spans two repos and three authors —
+eve's reply came from repo-2 but threads correctly
+because of the `References:` header.
 
 ---
 
@@ -556,20 +631,45 @@ The thread spans two repos and three authors — eve's reply came from repo-2 bu
 
 After running this experiment:
 
-- **Repos are not identities**: carol, dave, and eve post from both repos — the repo is just transport
-- **Threading works across repos**: the comp.lang.lua coroutine thread spans repo-1 and repo-2, with Claws grouping them correctly via `References:`/`In-Reply-To:` headers
-- **MH + git works**: plain numbered files in directories, version-controlled, mergeable
-- **Claws reads it natively**: no import, no conversion, just point at the directory
-- **file:// sync is trivial**: `git pull` between local repos, no server or daemon
-- **Trailing-digit scheme prevents collisions**: `*1` files never clash with `*2` files
-- **Bidirectional sync**: both peers can create messages and pull from each other
-- **Live updates**: Claws picks up new files on refresh
-- **Hierarchy preserved**: `sci.crypt/` and `sci.crypt.random/` appear as sibling folders
+- **Repos are not identities**: carol, dave,
+  and eve post from both repos — the repo is
+  just transport
+- **Threading works across repos**: the
+  comp.lang.lua coroutine thread spans repo-1
+  and repo-2, with Claws grouping them correctly
+  via `References:`/`In-Reply-To:` headers
+- **MH + git works**: plain numbered files in
+  directories, version-controlled, mergeable
+- **Claws reads it natively**: no import, no
+  conversion, just point at the directory
+- **file:// sync is trivial**: `git pull` between
+  local repos, no server or daemon
+- **Trailing-digit scheme prevents collisions**:
+  `*1` files never clash with `*2` files
+- **Bidirectional sync**: both peers can create
+  messages and pull from each other
+- **Live updates**: Claws picks up new files
+  on refresh
+- **Hierarchy preserved**: `sci.crypt/` and
+  `sci.crypt.random/` appear as sibling folders
 
 ### Limitations of this simple setup
 
-- **Trailing-digit numbering is peer-count-limited** — works for up to 10 peers. The timestamp+hash scheme from `all.md` removes this limit.
-- **No deduplication** — not needed here (unique filenames by construction), but a real system needs it.
-- **Manual git operations** — no daemon, no hooks, just scripts. A real setup would use git hooks or inotify.
-- **No signing, no content addressing** — this is intentionally the simplest possible layer. Freechains properties come later.
-- **Empty directories require a placeholder** — git doesn't track empty directories. Either add a `.gitkeep` or ensure Claws creates `.mh_sequences` on first access.
+- **Trailing-digit numbering is
+  peer-count-limited** — works for up to 10
+  peers.
+  The timestamp+hash scheme from `all.md`
+  removes this limit.
+- **No deduplication** — not needed here (unique
+  filenames by construction), but a real system
+  needs it.
+- **Manual git operations** — no daemon, no
+  hooks, just scripts.
+  A real setup would use git hooks or inotify.
+- **No signing, no content addressing** — this
+  is intentionally the simplest possible layer.
+  Freechains properties come later.
+- **Empty directories require a placeholder** —
+  git doesn't track empty directories.
+  Either add a `.gitkeep` or ensure Claws
+  creates `.mh_sequences` on first access.
