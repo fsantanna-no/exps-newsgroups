@@ -1,1 +1,11 @@
 *.swp
+
+# claws
+.claws_cache
+.claws_mark
+.mh_sequences
+inbox/
+draft/
+sent/
+queue/
+trash/
