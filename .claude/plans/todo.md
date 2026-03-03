@@ -50,19 +50,20 @@ Step 9d (eve's cross-repo reply) is a live demo.
 | — | peer-2 remote peer-1 → `file:///x/freechains/peers/peer-1` |
 | — | Claws Mail: peer-1 and peer-2 added as MH mailboxes |
 | — | renamed repos/ → peers/, repo-X → peer-X |
+| 3 | peer-1 sci/crypt messages (11, 21) + sci/crypt/random (11) |
+| 4 | peer-1 alt/test messages (11, 21) + alt/test/flood (11) |
+| — | peer-1 committed + pushed by user (6 new messages) |
+| — | peer-2 synced ← peer-1 (`git pull peer-1 main`) |
+| 7 | peer-2 rec/music messages (12, 22, 32) |
+| 8 | peer-2 rec/music/synth messages (12, 22) |
+| — | peer-2 committed + pushed by user (5 new messages) |
+| — | peer-1 synced ← peer-2 (added peer-2 remote, pulled) |
+| — | Claws stale cache fix: delete `.claws_cache`/`.claws_mark` to rescan |
 
 ### TODO
 
 | # | What | Details |
 |----|------|---------|
-| 3 | peer-1 sci/crypt messages | sci/crypt/11, 21 + sci/crypt/random/11 |
-| 4 | peer-1 alt/test messages | alt/test/11, 21 + alt/test/flood/11 |
-| — | commit + push peer-1 | 6 new messages |
-| — | sync peer-2 ← peer-1 | `git pull peer-1 main` |
-| 7 | peer-2 rec/music messages | rec/music/12, 22, 32 |
-| 8 | peer-2 rec/music/synth messages | rec/music/synth/12, 22 |
-| — | commit + push peer-2 | 5 new messages |
-| — | sync peer-1 ← peer-2 | add peer-2 remote, pull |
 | — | .git/info/exclude | add Claws rules to both repos |
 | — | Claws verify | refresh both, check threading |
 | 12 | Claws Mail instructions | document setup for README |
@@ -77,21 +78,27 @@ Step 9d (eve's cross-repo reply) is a live demo.
 - Ignores: `peers/peer-1/`, `peers/peer-2/`
 
 ### peer-1 (`/x/freechains/peers/peer-1`)
-- Branch: main, 2 commits
-- Remote: `origin` → GitHub
-- No peer remote yet
-- Files: 5 .gitkeep + 3 messages (comp/lang/lua)
-- Missing: 6 messages (sci/crypt, alt/test)
+- Branch: main
+- Remotes: `origin` → GitHub,
+  `peer-2` → `file:///x/freechains/peers/peer-2`
+- Files: all messages present (synced both ways)
 - Missing: `.git/info/exclude` Claws rules
 
 ### peer-2 (`/x/freechains/peers/peer-2`)
-- Branch: main, 2 commits (synced from peer-1)
+- Branch: main
 - Remotes: `origin` → GitHub,
   `peer-1` → `file:///x/freechains/peers/peer-1`
-- Files: same as peer-1 (synced)
-- Missing: 5 own messages (rec/music, rec/music/synth)
+- Files: all messages present (synced both ways)
 - Missing: `.git/info/exclude` Claws rules
 
 ### Claws Mail
 - Both peers added as MH mailboxes
 - comp/lang/lua shows 3 messages with threading
+- MH mailboxes have no auto-scan: click folder
+  to rescan
+- "Get Mail" only works for POP3/IMAP, not MH
+- Stale cache issue: if folder was cached empty,
+  new files won't appear until `.claws_cache` and
+  `.claws_mark` are deleted
+- Alternative: NeoMutt (TUI, native MH, no cache
+  staleness issue)
