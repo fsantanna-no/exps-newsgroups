@@ -1,0 +1,11 @@
+From: carol@example.com
+Newsgroups: comp.lang.lua
+Subject: Re: Lua 5.5 coroutine changes
+Message-ID: <lua-coro-02@carol>
+Date: Mon, 24 Feb 2026 11:00:00 -0300
+References: <lua-coro-01@alice>
+In-Reply-To: <lua-coro-01@alice>
+
+The new close() behavior matters a lot for game engines.
+We use coroutines for NPC scripts and the finalization
+order change broke some of our cleanup logic.

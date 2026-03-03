@@ -1,0 +1,9 @@
+From: eve@example.com
+Newsgroups: comp.lang.lua
+Subject: Lua string patterns vs full regex
+Message-ID: <lua-pattern-01@eve>
+Date: Mon, 24 Feb 2026 12:00:00 -0300
+
+I keep running into limitations with Lua's built-in patterns.
+No alternation, no non-greedy quantifiers. Is LPeg the only
+real alternative, or are there lighter options?
