@@ -1,0 +1,8 @@
+From: alice@example.com
+Newsgroups: comp.lang.lua
+Subject: Lua 5.5 coroutine changes
+Message-ID: <lua-coro-01@alice>
+Date: Mon, 24 Feb 2026 10:00:00 -0300
+
+Has anyone tested the new coroutine.close() behavior in 5.5?
+It seems to finalize to-be-closed variables differently.
