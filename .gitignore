@@ -1,5 +1,9 @@
 *.swp
 
+# repos
+repos/repo-1/
+repos/repo-2/
+
 # claws
 .claws_cache
 .claws_mark
