@@ -31,6 +31,18 @@ Step 9d (eve's cross-repo reply) is a live demo.
 - **Claws folder detection**: manual
   ("Check for new folders") — only needed once if
   dirs pre-exist via `.gitkeep`
+- **`.mh_sequences` format**: one sequence per line,
+  `name: msg_numbers` (e.g., `unseen: 11 21 31`);
+  ranges allowed (`5-10`); common sequences: `unseen`,
+  `cur`, `replied`
+- **`.mh_sequences` requirement**: every directory in
+  an MH tree must have one for clients (Balsa) to
+  recognize the hierarchy; leaf dirs list messages,
+  intermediate dirs can be empty
+- **`.gitkeep` removal strategy**: once `.mh_sequences`
+  exists in every dir, `.gitkeep` is redundant; delete
+  locally + `git update-index --skip-worktree` to hide
+  from git (per-clone setting, not propagated)
 
 ---
 
@@ -65,6 +77,8 @@ Step 9d (eve's cross-repo reply) is a live demo.
 | # | What | Details |
 |----|------|---------|
 | — | .git/info/exclude | add Claws rules to both repos |
+| — | .mh_sequences | every dir needs one for MH clients (Balsa, Claws); leaf dirs with messages list `unseen: N N N`; intermediate dirs can be empty |
+| — | .gitkeep vs .mh_sequences | after MH client creates `.mh_sequences`, `.gitkeep` files become redundant; use `git update-index --skip-worktree <file>` to hide local deletion of `.gitkeep` from git (per-clone, not propagated) |
 | — | Claws verify | refresh both, check threading |
 | 12 | Claws Mail instructions | document setup for README |
 
